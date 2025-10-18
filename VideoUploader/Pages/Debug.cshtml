@@ -1,0 +1,65 @@
+﻿@page
+@model VideoUploader.Pages.DebugModel
+@{
+    ViewData["Title"] = "Debug Info";
+}
+
+<div class="container mt-4">
+    <h2>Debug Information</h2>
+    
+    <div class="card mb-3">
+        <div class="card-header">
+            <h5>OAuth URL</h5>
+        </div>
+        <div class="card-body">
+            <pre class="border p-3 bg-light">@Model.OAuthUrl</pre>
+        </div>
+    </div>
+
+    <div class="card mb-3">
+        <div class="card-header">
+            <h5>Configuration</h5>
+        </div>
+        <div class="card-body">
+            <dl>
+                <dt>App ID</dt>
+                <dd>@Model.AppId</dd>
+                <dt>Config ID</dt>
+                <dd>@Model.ConfigId</dd>
+                <dt>Redirect URI</dt>
+                <dd>@Model.RedirectUri</dd>
+                <dt>Requested Scopes</dt>
+                <dd>@Model.Scopes</dd>
+            </dl>
+        </div>
+    </div>
+
+    @if (User.Identity?.IsAuthenticated == true)
+    {
+        <div class="card">
+            <div class="card-header">
+                <h5>Current User</h5>
+            </div>
+            <div class="card-body">
+                <h6>Claims</h6>
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th>Type</th>
+                            <th>Value</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var claim in User.Claims)
+                        {
+                            <tr>
+                                <td>@claim.Type</td>
+                                <td>@(claim.Type.Contains("token") ? "[HIDDEN]" : claim.Value)</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    }
+</div>

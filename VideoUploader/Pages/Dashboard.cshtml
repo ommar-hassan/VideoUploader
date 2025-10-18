@@ -1,0 +1,173 @@
+﻿@page
+@model DashboardModel
+@{
+    ViewData["Title"] = "Dashboard";
+}
+
+<div class="row justify-content-center">
+    <div class="col-md-8 col-lg-7">
+        <div class="card">
+            <div class="card-header bg-primary text-white">
+                <h3 class="mb-0"><i class="bi bi-cloud-upload me-2"></i>Upload and Share Your Video</h3>
+            </div>
+            <div class="card-body p-4">
+
+                @if (Model.Results != null && Model.Results.Any())
+                {
+                    foreach (var result in Model.Results)
+                    {
+                        <div class="alert @(result.Success ? "alert-success" : "alert-danger") alert-dismissible fade show" role="alert">
+                            <strong>@result.Platform:</strong> @result.Message
+                            @if (!string.IsNullOrEmpty(result.ErrorDetails))
+                            {
+                                <br />
+                                <small>@result.ErrorDetails</small>
+                            }
+                            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                        </div>
+                    }
+                }
+
+                <form method="post" enctype="multipart/form-data" id="uploadForm">
+
+                    <!-- Video Upload Section -->
+                    <div class="mb-4">
+                        <label for="videoFile" class="form-label fw-bold">
+                            <i class="bi bi-camera-video me-1"></i> Select Video File
+                        </label>
+                        <input class="form-control form-control-lg" type="file"
+                               id="videoFile" name="videoFile" accept="video/*" required>
+                        <div class="form-text">Supported formats: MP4, MOV, AVI (Max 256MB for YouTube)</div>
+                    </div>
+
+                    <!-- Video Description -->
+                    <div class="mb-4">
+                        <label for="videoDescription" class="form-label fw-bold">
+                            <i class="bi bi-file-text me-1"></i> Video Description (Optional)
+                        </label>
+                        <input type="text" class="form-control" id="videoDescription"
+                               name="videoDescription" placeholder="Brief description for AI caption generation">
+                    </div>
+
+                    <!-- Generate Caption Button (AJAX) -->
+                    <div class="mb-4">
+                        <button type="button" id="generateBtn" class="btn btn-info btn-lg w-100">
+                            <i class="bi bi-stars me-2"></i>Generate Caption using AI
+                            <span class="spinner-border spinner-border-sm ms-2 d-none" id="generateSpinner"></span>
+                        </button>
+                    </div>
+
+                    <!-- Caption Textarea -->
+                    <div class="mb-4">
+                        <label for="caption" class="form-label fw-bold">
+                            <i class="bi bi-chat-quote me-1"></i> Caption / Title
+                        </label>
+                        <textarea class="form-control" id="caption" name="caption"
+                                  rows="3" placeholder="Your video caption will appear here...">@Model.GeneratedCaption</textarea>
+                        <div class="form-text">This will be used as the title and description</div>
+                    </div>
+
+                    <!-- Hidden field to preserve server-saved filename -->
+                    <input type="hidden" id="existingFileName" name="existingFileName" value="@TempData["UploadedFileName"]" />
+
+                    <!-- Platform Selection -->
+                    <div class="mb-4">
+                        <label class="form-label fw-bold">
+                            <i class="bi bi-share me-1"></i> Select Platform(s)
+                        </label>
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox"
+                                   id="postToFacebook" name="postToFacebook" value="true">
+                            <label class="form-check-label" for="postToFacebook">
+                                <i class="bi bi-facebook text-primary me-1"></i> Post to Facebook Page
+                            </label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox"
+                                   id="postToYouTube" name="postToYouTube" value="true">
+                            <label class="form-check-label" for="postToYouTube">
+                                <i class="bi bi-youtube text-danger me-1"></i> Upload to YouTube Shorts
+                            </label>
+                        </div>
+                    </div>
+
+                    <!-- Upload Button -->
+                    <div class="d-grid gap-2">
+                        <button type="submit" asp-page-handler="Upload"
+                                class="btn btn-success btn-lg" id="uploadBtn">
+                            <i class="bi bi-upload me-2"></i>Upload & Post
+                            <span class="spinner-border spinner-border-sm ms-2 d-none" id="uploadSpinner"></span>
+                        </button>
+                    </div>
+
+                </form>
+
+                <!-- Logout Button -->
+                <div class="mt-4 text-center">
+                    <form method="post" asp-page-handler="Logout" class="d-inline">
+                        <button type="submit" class="btn btn-outline-secondary">
+                            <i class="bi bi-box-arrow-right me-1"></i> Logout
+                        </button>
+                    </form>
+                </div>
+
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        (function () {
+            const generateBtn = document.getElementById('generateBtn');
+            const spinner = document.getElementById('generateSpinner');
+            const videoFileInput = document.getElementById('videoFile');
+            const descriptionInput = document.getElementById('videoDescription');
+            const captionTextarea = document.getElementById('caption');
+            const existingFileNameInput = document.getElementById('existingFileName');
+
+            generateBtn.addEventListener('click', async function () {
+                if (!videoFileInput.files || videoFileInput.files.length === 0) {
+                    alert('Please select a video file first.');
+                    return;
+                }
+
+                spinner.classList.remove('d-none');
+                generateBtn.disabled = true;
+
+                const fd = new FormData();
+                fd.append('videoFile', videoFileInput.files[0]);
+                fd.append('videoDescription', descriptionInput.value || '');
+
+                try {
+                    const resp = await fetch(window.location.pathname + '?handler=GenerateCaption', {
+                        method: 'POST',
+                        body: fd,
+                        credentials: 'same-origin',
+                        headers: {
+                            'X-Requested-With': 'XMLHttpRequest'
+                        }
+                    });
+
+                    if (!resp.ok) {
+                        const txt = await resp.text();
+                        alert('Caption generation failed: ' + txt);
+                        return;
+                    }
+
+                    const json = await resp.json();
+                    captionTextarea.value = json.caption || '';
+                    if (json.fileName) {
+                        existingFileNameInput.value = json.fileName;
+                    }
+                } catch (err) {
+                    console.error(err);
+                    alert('Error generating caption.');
+                } finally {
+                    spinner.classList.add('d-none');
+                    generateBtn.disabled = false;
+                }
+            });
+        })();
+    </script>
+}
